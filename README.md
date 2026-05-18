@@ -1,2 +1,86 @@
 # AquaConnect
+
 AquaConnect is a water tanker booking web application built using Java Spring Boot backend services and PostgreSQL database connectivity.
+
+This project helps users find nearby water suppliers and book water tankers during water shortage situations or book tankers for any special occasions.
+
+Owners can register their water supply business, add branches, vehicles, drivers, water quantity available with them , and pricing details based on distance and quantity user need.
+
+Users can search nearby water suppliers, book tankers ( just like rapido ), track delivery updates, and give feedback after delivery or report any issues with their experience.
+
+---
+
+## Project Status
+
+Day 1 has:
+- Spring Boot setup
+- PostgreSQL connection
+- Owner registration
+- Branch registration
+- Vehicle registration
+- Driver registration
+- Image upload
+- Password encryption
+- Data stored in PostgreSQL
+
+---
+
+## Tech Stack
+
+### Backend
+- Java 21
+- Spring Boot
+- Spring Web
+- Spring Data JPA
+- Spring Security
+- PostgreSQL
+
+### Tools
+- IntelliJ IDEA
+- Postman
+- pgAdmin
+- GitHub
+
+---
+
+## Main Actors
+
+### Owner
+- Registers water supply business
+- Adds branches
+- Adds vehicles
+- Adds drivers
+- Updates water quantity
+- Sets water prices
+
+### Driver
+- Receives delivery orders
+- Delivers water tanker
+- Updates delivery status
+
+### User
+- Registers and logs in
+- Searches nearby water suppliers
+- Books water tankers
+- Gives feedback after delivery or report an issue to owner
+
+---
+
+## Current Features
+
+### Day-1 Owner Registration Module
+
+The owner will register with:
+- Full name
+- Phone number
+- Email
+- Password
+- Bank account details
+- Branch details
+- Water quantity
+- Vehicles
+- Drivers
+- Water prices
+- Reservoir images
+
+---
