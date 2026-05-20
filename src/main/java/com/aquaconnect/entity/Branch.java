@@ -2,7 +2,7 @@ package com.aquaconnect.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +31,7 @@ public class Branch {
 
     private Boolean active;
 
+    @JsonIgnore
     @ManyToOne
     private Owner owner;
 

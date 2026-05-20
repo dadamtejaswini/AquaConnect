@@ -10,21 +10,6 @@ Users can search nearby water suppliers, book tankers ( just like rapido ), trac
 
 ---
 
-## Project Status
-
-Day 1 has:
-- Spring Boot setup
-- PostgreSQL connection
-- Owner registration
-- Branch registration
-- Vehicle registration
-- Driver registration
-- Image upload
-- Password encryption
-- Data stored in PostgreSQL
-
----
-
 ## Tech Stack
 
 ### Backend
@@ -68,7 +53,7 @@ Day 1 has:
 
 ## Current Features
 
-### Day-1 Owner Registration Module
+### Day 1-3 Owner Registration Module
 
 The owner will register with:
 - Full name
@@ -82,5 +67,23 @@ The owner will register with:
 - Drivers
 - Water prices
 - Reservoir images
+
+
+### Day 4 User Authentication & Authorization
+
+- User entity creation
+- USER, OWNER, ADMIN role management
+- User registration
+- User login
+- JWT authentication
+- JWT token generation and validation
+- Spring Security integration
+- Role-based authorization
+- Reservoir listing API
+- Reservoir details API
+- Global exception handling
+- Invalid credentials handling
+- Branch repository implementation
+
 
 ---
