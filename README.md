@@ -69,7 +69,7 @@ The owner will register with:
 - Reservoir images
 
 
-### Day 4 User Authentication & Authorization
+### Day 4-5 User Authentication & Authorization
 
 - User entity creation
 - USER, OWNER, ADMIN role management

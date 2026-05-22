@@ -31,15 +31,8 @@ public class OwnerService {
             List<MultipartFile> licenseImages
     ) {
         try {
-            OwnerRegisterRequest request = objectMapper.readValue(data, OwnerRegisterRequest.class);
-
-            if (ownerRepository.existsByEmail(request.getEmail())) {
-                throw new RuntimeException("Email already exists");
-            }
-
-            if (ownerRepository.existsByPhoneNumber(request.getPhoneNumber())) {
-                throw new RuntimeException("Phone number already exists");
-            }
+            OwnerRegisterRequest request =
+                    objectMapper.readValue(data, OwnerRegisterRequest.class);
 
             if (reservoirImages == null || reservoirImages.size() < 3) {
                 throw new RuntimeException("Minimum 3 reservoir images required");
@@ -57,14 +50,23 @@ public class OwnerService {
                 throw new RuntimeException("Driver details and license images count must match");
             }
 
-            Owner owner = Owner.builder()
-                    .fullName(request.getFullName())
-                    .phoneNumber(request.getPhoneNumber())
-                    .email(request.getEmail())
-                    .password(passwordEncoder.encode(request.getPassword()))
-                    .bankAccountNumber(request.getBankAccountNumber())
-                    .createdAt(LocalDateTime.now())
-                    .build();
+            Owner owner = ownerRepository.findByEmail(request.getEmail())
+                    .orElse(null);
+
+            boolean newOwner = false;
+
+            if (owner == null) {
+                owner = Owner.builder()
+                        .fullName(request.getFullName())
+                        .phoneNumber(request.getPhoneNumber())
+                        .email(request.getEmail())
+                        .password(passwordEncoder.encode(request.getPassword()))
+                        .bankAccountNumber(request.getBankAccountNumber())
+                        .createdAt(LocalDateTime.now())
+                        .build();
+
+                newOwner = true;
+            }
 
             Branch branch = Branch.builder()
                     .branchName(request.getBranchName())
@@ -98,11 +100,18 @@ public class OwnerService {
             }
 
             for (int i = 0; i < request.getDrivers().size(); i++) {
+
+                String driverName = request.getDrivers().get(i).getDriverName();
+                String phoneNumber = request.getDrivers().get(i).getPhoneNumber();
+                String licenseNumber = request.getDrivers().get(i).getLicenseNumber();
+
+                String rawPassword = generateDriverPassword(driverName, licenseNumber);
+
                 Driver driver = Driver.builder()
-                        .driverName(request.getDrivers().get(i).getDriverName())
-                        .phoneNumber(request.getDrivers().get(i).getPhoneNumber())
-                        .licenseNumber(request.getDrivers().get(i).getLicenseNumber())
-                        .password(passwordEncoder.encode(request.getDrivers().get(i).getPhoneNumber()))
+                        .driverName(driverName)
+                        .phoneNumber(phoneNumber)
+                        .licenseNumber(licenseNumber)
+                        .password(passwordEncoder.encode(rawPassword))
                         .driverImagePath(fileStorageService.saveFile(driverImages.get(i), "drivers"))
                         .licenseImagePath(fileStorageService.saveFile(licenseImages.get(i), "licenses"))
                         .rating(5.0)
@@ -111,6 +120,13 @@ public class OwnerService {
                         .build();
 
                 branch.getDrivers().add(driver);
+
+                System.out.println("==================================");
+                System.out.println("Driver Created Successfully");
+                System.out.println("Name      : " + driverName);
+                System.out.println("Login ID  : " + phoneNumber);
+                System.out.println("Password  : " + rawPassword);
+                System.out.println("==================================");
             }
 
             request.getWaterPrices().forEach(priceRequest -> {
@@ -124,13 +140,29 @@ public class OwnerService {
             });
 
             owner.getBranches().add(branch);
-
             ownerRepository.save(owner);
 
-            return "Owner and first branch registered successfully";
+            if (newOwner) {
+                return "Owner and first branch registered successfully";
+            }
+
+            return "New branch added successfully for existing owner";
 
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
         }
+    }
+
+    private String generateDriverPassword(String driverName, String licenseNumber) {
+
+        String firstName = driverName.trim().split(" ")[0].toLowerCase();
+
+        String digits = licenseNumber.replaceAll("[^0-9]", "");
+
+        String lastSix = digits.length() >= 6
+                ? digits.substring(digits.length() - 6)
+                : digits;
+
+        return firstName + lastSix;
     }
 }

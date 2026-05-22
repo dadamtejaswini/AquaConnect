@@ -24,10 +24,14 @@ public class SecurityConfig {
 
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/owners/register").permitAll()
                 .requestMatchers("/api/reservoirs/**").permitAll()
+
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/owner/**").hasRole("OWNER")
+                .requestMatchers("/api/owners/**").hasRole("OWNER")
                 .requestMatchers("/api/user/**").hasRole("USER")
+                .requestMatchers("/api/drivers/**").hasRole("DRIVER")
+
                 .anyRequest().authenticated()
         );
 

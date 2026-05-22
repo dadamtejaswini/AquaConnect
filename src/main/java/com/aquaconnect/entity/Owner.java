@@ -22,10 +22,10 @@ public class Owner {
 
     private String fullName;
 
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false)
     private String phoneNumber;
 
-    @Column(unique = true, nullable = false)
+    @Column( nullable = false)
     private String email;
 
     private String password;

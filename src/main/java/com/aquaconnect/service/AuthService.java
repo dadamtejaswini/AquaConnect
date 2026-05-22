@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.aquaconnect.entity.Driver;
+import com.aquaconnect.repository.DriverRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +21,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    private final DriverRepository driverRepository;
 
     public String register(RegisterRequest request) {
 
@@ -66,6 +69,26 @@ public class AuthService {
                 token,
                 user.getRole().name(),
                 "Login successful"
+        );
+    }
+    public AuthResponse driverLogin(LoginRequest request) {
+
+        Driver driver = driverRepository.findByPhoneNumber(request.getEmail())
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid driver credentials"));
+
+        if (!passwordEncoder.matches(request.getPassword(), driver.getPassword())) {
+            throw new InvalidCredentialsException("Invalid driver credentials");
+        }
+
+        String token = jwtUtil.generateToken(
+                driver.getPhoneNumber(),
+                "DRIVER"
+        );
+
+        return new AuthResponse(
+                token,
+                "DRIVER",
+                "Driver login successful"
         );
     }
 }

@@ -22,4 +22,9 @@ public class AuthController {
     public AuthResponse login(@RequestBody LoginRequest request) {
         return authService.login(request);
     }
+
+    @PostMapping("/driver-login")
+    public AuthResponse driverLogin(@RequestBody LoginRequest request) {
+        return authService.driverLogin(request);
+    }
 }
