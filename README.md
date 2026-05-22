@@ -85,5 +85,13 @@ The owner will register with:
 - Invalid credentials handling
 - Branch repository implementation
 
+### Day 6-7 Driver Authentication
+
+- Driver login implemented
+- DRIVER role added
+- Driver credentials generated automatically
+- JWT authentication for drivers
+- Multi-driver registration support
+- Added multiple branches and owners
 
 ---
