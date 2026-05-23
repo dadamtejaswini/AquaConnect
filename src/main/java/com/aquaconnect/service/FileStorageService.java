@@ -24,7 +24,7 @@ public class FileStorageService {
 
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-            return filePath.toString();
+            return "/uploads/" + folder + "/" + fileName;
 
         } catch (IOException e) {
             throw new RuntimeException("File upload failed");

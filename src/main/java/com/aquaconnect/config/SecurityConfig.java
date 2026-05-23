@@ -23,6 +23,7 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable());
 
         http.authorizeHttpRequests(auth -> auth
+                .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/owners/register").permitAll()
                 .requestMatchers("/api/reservoirs/**").permitAll()
@@ -31,6 +32,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/owners/**").hasRole("OWNER")
                 .requestMatchers("/api/user/**").hasRole("USER")
                 .requestMatchers("/api/drivers/**").hasRole("DRIVER")
+                .requestMatchers("/api/bookings/**").permitAll()
 
                 .anyRequest().authenticated()
         );

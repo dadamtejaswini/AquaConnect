@@ -6,8 +6,7 @@ This project helps users find nearby water suppliers and book water tankers duri
 
 Owners can register their water supply business, add branches, vehicles, drivers, water quantity available with them , and pricing details based on distance and quantity user need.
 
-Users can search nearby water suppliers, book tankers ( just like rapido ), track delivery updates, and give feedback after delivery or report any issues with their experience.
-
+Users can search nearby water suppliers, view reservoir images, compare prices, book water tankers (just like Rapido), track delivery updates, and give feedback after delivery or report issues to owners.
 ---
 
 ## Tech Stack
@@ -93,5 +92,22 @@ The owner will register with:
 - JWT authentication for drivers
 - Multi-driver registration support
 - Added multiple branches and owners
+
+### Day 8-9 Nearby Reservoir & Booking Module
+
+- Nearby reservoir search API
+- Distance calculation using latitude and longitude
+- Radius-based reservoir filtering
+- Reservoir image support
+- Available drivers and vehicles count
+- Starting water price display
+- Booking module implementation
+- Auto driver assignment
+- Auto vehicle assignment
+- Water quantity validation
+- Water quantity deduction after booking
+- Booking status management
+- Owner notification message generation
+- Booking API tested successfully
 
 ---
