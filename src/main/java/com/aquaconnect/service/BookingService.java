@@ -1,5 +1,6 @@
 package com.aquaconnect.service;
 
+import com.aquaconnect.dto.AssignBookingRequestDto;
 import com.aquaconnect.dto.BookingRequestDto;
 import com.aquaconnect.dto.BookingResponseDto;
 import com.aquaconnect.entity.*;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +21,8 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
+    private final DriverRepository driverRepository;
+    private final VehicleRepository vehicleRepository;
 
     public BookingResponseDto createBooking(BookingRequestDto request) {
 
@@ -32,67 +36,173 @@ public class BookingService {
             throw new RuntimeException("Not enough water available in this branch");
         }
 
-        Vehicle vehicle = branch.getVehicles().stream()
-                .filter(v -> v.getStatus() == VehicleStatus.AVAILABLE)
-                .filter(v -> v.getVehicleCapacity() >= request.getQuantity())
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("No available vehicle for this quantity"));
-
-        Driver driver = branch.getDrivers().stream()
-                .filter(d -> d.getStatus() == DriverStatus.AVAILABLE)
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("No available driver"));
-
         Double totalPrice = branch.getWaterPrices().stream()
                 .filter(price -> price.getQuantity().equals(request.getQuantity()))
                 .map(WaterPrice::getPrice)
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Price not found for selected quantity"));
 
-        branch.setCurrentWaterQuantity(
-                branch.getCurrentWaterQuantity() - request.getQuantity()
-        );
-
-        vehicle.setStatus(VehicleStatus.ON_DELIVERY);
-        driver.setStatus(DriverStatus.ON_DELIVERY);
+        branch.setCurrentWaterQuantity(branch.getCurrentWaterQuantity() - request.getQuantity());
+        branchRepository.save(branch);
 
         String ownerMessage =
                 "New booking received for " + branch.getBranchName()
                         + ". Customer: " + user.getName()
                         + ", Quantity: " + request.getQuantity() + " liters"
-                        + ", Driver: " + driver.getDriverName()
-                        + ", Vehicle: " + vehicle.getVehicleNumber();
+                        + ". Please assign driver and vehicle.";
 
         Booking booking = Booking.builder()
                 .user(user)
                 .branch(branch)
-                .driver(driver)
-                .vehicle(vehicle)
                 .quantity(request.getQuantity())
                 .totalPrice(totalPrice)
                 .deliveryAddress(request.getDeliveryAddress())
                 .deliveryLatitude(request.getDeliveryLatitude())
                 .deliveryLongitude(request.getDeliveryLongitude())
                 .bookingTime(LocalDateTime.now())
-                .status(BookingStatus.DRIVER_ASSIGNED)
+                .status(BookingStatus.PENDING)
                 .ownerNotificationMessage(ownerMessage)
                 .build();
 
         Booking savedBooking = bookingRepository.save(booking);
+        return mapToResponse(savedBooking);
+    }
+
+    public List<BookingResponseDto> getPendingBookings() {
+        return bookingRepository.findByStatus(BookingStatus.PENDING)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public List<BookingResponseDto> getPendingBookingsByOwner(Long ownerId) {
+        return bookingRepository.findByBranchOwnerIdAndStatus(ownerId, BookingStatus.PENDING)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public BookingResponseDto assignDriverAndVehicle(Long bookingId, AssignBookingRequestDto request) {
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        Driver driver = driverRepository.findById(request.getDriverId())
+                .orElseThrow(() -> new RuntimeException("Driver not found"));
+
+        Vehicle vehicle = vehicleRepository.findById(request.getVehicleId())
+                .orElseThrow(() -> new RuntimeException("Vehicle not found"));
+
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new RuntimeException("Only pending bookings can be assigned");
+        }
+
+        if (driver.getStatus() != DriverStatus.AVAILABLE) {
+            throw new RuntimeException("Driver is not available");
+        }
+
+        if (vehicle.getStatus() != VehicleStatus.AVAILABLE) {
+            throw new RuntimeException("Vehicle is not available");
+        }
+
+        if (vehicle.getVehicleCapacity() < booking.getQuantity()) {
+            throw new RuntimeException("Vehicle capacity is not enough for this booking");
+        }
+
+        booking.setDriver(driver);
+        booking.setVehicle(vehicle);
+        booking.setStatus(BookingStatus.DRIVER_ASSIGNED);
+
+        String updatedMessage =
+                "Booking assigned successfully. Driver " + driver.getDriverName()
+                        + " (" + driver.getPhoneNumber() + ")"
+                        + " has been assigned with vehicle " + vehicle.getVehicleNumber()
+                        + ". Status updated to DRIVER_ASSIGNED.";
+
+        booking.setOwnerNotificationMessage(updatedMessage);
+
+        driver.setStatus(DriverStatus.ON_DELIVERY);
+        vehicle.setStatus(VehicleStatus.ON_DELIVERY);
+
+        driverRepository.save(driver);
+        vehicleRepository.save(vehicle);
+
+        Booking savedBooking = bookingRepository.save(booking);
+        return mapToResponse(savedBooking);
+    }
+
+    public List<BookingResponseDto> getBookingsByDriver(Long driverId) {
+
+        Driver driver = driverRepository.findById(driverId)
+                .orElseThrow(() -> new RuntimeException("Driver not found"));
+
+        return bookingRepository.findByDriver(driver)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public BookingResponseDto markOutForDelivery(Long bookingId) {
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (booking.getStatus() != BookingStatus.DRIVER_ASSIGNED) {
+            throw new RuntimeException("Only assigned bookings can be marked as out for delivery");
+        }
+
+        booking.setStatus(BookingStatus.OUT_FOR_DELIVERY);
+
+        Booking savedBooking = bookingRepository.save(booking);
+        return mapToResponse(savedBooking);
+    }
+
+    public BookingResponseDto markDelivered(Long bookingId) {
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (booking.getStatus() != BookingStatus.OUT_FOR_DELIVERY) {
+            throw new RuntimeException("Only out for delivery bookings can be marked as delivered");
+        }
+
+        booking.setStatus(BookingStatus.DELIVERED);
+
+        Driver driver = booking.getDriver();
+        Vehicle vehicle = booking.getVehicle();
+
+        if (driver != null) {
+            driver.setStatus(DriverStatus.AVAILABLE);
+            driverRepository.save(driver);
+        }
+
+        if (vehicle != null) {
+            vehicle.setStatus(VehicleStatus.AVAILABLE);
+            vehicleRepository.save(vehicle);
+        }
+
+        Booking savedBooking = bookingRepository.save(booking);
+        return mapToResponse(savedBooking);
+    }
+
+    private BookingResponseDto mapToResponse(Booking booking) {
+
+        Driver driver = booking.getDriver();
+        Vehicle vehicle = booking.getVehicle();
 
         return BookingResponseDto.builder()
-                .bookingId(savedBooking.getId())
-                .userName(user.getName())
-                .branchName(branch.getBranchName())
-                .quantity(savedBooking.getQuantity())
-                .totalPrice(savedBooking.getTotalPrice())
-                .deliveryAddress(savedBooking.getDeliveryAddress())
-                .driverName(driver.getDriverName())
-                .driverPhone(driver.getPhoneNumber())
-                .vehicleNumber(vehicle.getVehicleNumber())
-                .vehicleCapacity(vehicle.getVehicleCapacity())
-                .status(savedBooking.getStatus())
-                .ownerNotificationMessage(ownerMessage)
+                .bookingId(booking.getId())
+                .userName(booking.getUser().getName())
+                .branchName(booking.getBranch().getBranchName())
+                .quantity(booking.getQuantity())
+                .totalPrice(booking.getTotalPrice())
+                .deliveryAddress(booking.getDeliveryAddress())
+                .driverName(driver != null ? driver.getDriverName() : null)
+                .driverPhone(driver != null ? driver.getPhoneNumber() : null)
+                .vehicleNumber(vehicle != null ? vehicle.getVehicleNumber() : null)
+                .vehicleCapacity(vehicle != null ? vehicle.getVehicleCapacity() : null)
+                .status(booking.getStatus())
+                .ownerNotificationMessage(booking.getOwnerNotificationMessage())
                 .build();
     }
 }

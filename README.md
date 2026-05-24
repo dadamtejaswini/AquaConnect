@@ -102,12 +102,22 @@ The owner will register with:
 - Available drivers and vehicles count
 - Starting water price display
 - Booking module implementation
-- Auto driver assignment
-- Auto vehicle assignment
 - Water quantity validation
 - Water quantity deduction after booking
 - Booking status management
 - Owner notification message generation
 - Booking API tested successfully
+
+### Day 10 Updated Tanker booking
+
+- Booking entity and repository implementation
+- Create booking API
+- Branch-wise booking management
+- Owner pending bookings API
+- Driver and vehicle assignment
+- Booking status tracking
+- Driver assigned bookings API
+- Delivery status updates
+- Automatic driver and vehicle availability management
 
 ---
