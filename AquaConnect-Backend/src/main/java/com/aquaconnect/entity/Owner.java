@@ -25,7 +25,7 @@ public class Owner {
     @Column(nullable = false)
     private String phoneNumber;
 
-    @Column( nullable = false)
+    @Column(nullable = false)
     private String email;
 
     private String password;

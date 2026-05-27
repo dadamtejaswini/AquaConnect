@@ -28,13 +28,15 @@ function Login() {
     try {
       let response;
 
+      const requestData = {
+        email: loginData.email.trim(),
+        password: loginData.password,
+      };
+
       if (loginType === "DRIVER") {
-        response = await api.post("/api/auth/driver-login", {
-          email: loginData.email,
-          password: loginData.password,
-        });
+        response = await api.post("/api/auth/driver-login", requestData);
       } else {
-        response = await api.post("/api/auth/login", loginData);
+        response = await api.post("/api/auth/login", requestData);
       }
 
       localStorage.setItem("token", response.data.token);
@@ -48,7 +50,15 @@ function Login() {
         navigate("/driver-dashboard");
       }
     } catch (error) {
-      setMessage("Invalid email/phone or password");
+      console.log("LOGIN ERROR:", error);
+      console.log("STATUS:", error.response?.status);
+      console.log("BACKEND RESPONSE:", error.response?.data);
+
+      setMessage(
+        error.response?.data?.message ||
+          error.response?.data ||
+          "Invalid email/license number or password"
+      );
     }
   };
 
@@ -86,11 +96,11 @@ function Login() {
           </div>
 
           <input
-            type={loginType === "DRIVER" ? "text" : "email"}
+            type="text"
             name="email"
             placeholder={
               loginType === "DRIVER"
-                ? "Enter Driver Phone Number"
+                ? "Enter Driver License Number"
                 : "Enter Email"
             }
             value={loginData.email}
@@ -113,6 +123,10 @@ function Login() {
 
           <div className="auth-link">
             Don't have an account? <Link to="/register">Sign Up</Link>
+          </div>
+
+          <div className="auth-link">
+            Forgot password? <Link to="/reset-password">Reset Password</Link>
           </div>
         </form>
       </div>

@@ -4,6 +4,7 @@ import com.aquaconnect.dto.*;
 import com.aquaconnect.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import com.aquaconnect.dto.ResetPasswordRequest;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -16,6 +17,11 @@ public class AuthController {
     @PostMapping("/register")
     public String register(@RequestBody RegisterRequest request) {
         return authService.register(request);
+    }
+
+    @PutMapping("/reset-password")
+    public String resetPassword(@RequestBody ResetPasswordRequest request) {
+        return authService.resetPassword(request);
     }
 
     @PostMapping("/login")
