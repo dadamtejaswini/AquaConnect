@@ -27,14 +27,44 @@ public class OwnerController {
         return ownerService.addBranch(request, principal.getName());
     }
 
-    @PostMapping("/vehicles")
-    public String addVehicle(@RequestBody AddVehicleRequest request, Principal principal) {
-        return ownerService.addVehicle(request, principal.getName());
+    @PostMapping(value = "/vehicles", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public String addVehicle(
+            @RequestParam Long branchId,
+            @RequestParam String vehicleNumber,
+            @RequestParam Double vehicleCapacity,
+            @RequestParam MultipartFile vehicleImage,
+            Principal principal
+    ) {
+        return ownerService.addVehicle(
+                branchId,
+                vehicleNumber,
+                vehicleCapacity,
+                vehicleImage,
+                principal.getName()
+        );
     }
 
-    @PostMapping("/drivers")
-    public String addDriver(@RequestBody AddDriverRequest request, Principal principal) {
-        return ownerService.addDriver(request, principal.getName());
+    @PostMapping(value = "/drivers", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public String addDriver(
+            @RequestParam Long branchId,
+            @RequestParam String driverName,
+            @RequestParam String phoneNumber,
+            @RequestParam String licenseNumber,
+            @RequestParam String password,
+            @RequestParam MultipartFile driverImage,
+            @RequestParam MultipartFile licenseImage,
+            Principal principal
+    ) {
+        return ownerService.addDriver(
+                branchId,
+                driverName,
+                phoneNumber,
+                licenseNumber,
+                password,
+                driverImage,
+                licenseImage,
+                principal.getName()
+        );
     }
 
     @PutMapping("/bookings/{bookingId}/assign")
@@ -53,6 +83,11 @@ public class OwnerController {
             Principal principal
     ) {
         return ownerService.updateBookingStatus(bookingId, request, principal.getName());
+    }
+
+    @GetMapping("/feedbacks")
+    public List<FeedbackResponseDto> getOwnerFeedbacks(Principal principal) {
+        return ownerService.getOwnerFeedbacks(principal.getName());
     }
 
     @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

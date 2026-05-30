@@ -6,6 +6,7 @@ function Login() {
   const navigate = useNavigate();
 
   const [loginType, setLoginType] = useState("USER");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [loginData, setLoginData] = useState({
     email: "",
@@ -19,6 +20,8 @@ function Login() {
       ...loginData,
       [e.target.name]: e.target.value,
     });
+
+    setMessage("");
   };
 
   const handleLogin = async (e) => {
@@ -26,12 +29,12 @@ function Login() {
     setMessage("");
 
     try {
-      let response;
-
       const requestData = {
         email: loginData.email.trim(),
         password: loginData.password,
       };
+
+      let response;
 
       if (loginType === "DRIVER") {
         response = await api.post("/api/auth/driver-login", requestData);
@@ -39,25 +42,30 @@ function Login() {
         response = await api.post("/api/auth/login", requestData);
       }
 
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("role", response.data.role);
+      const token = response.data.token;
+      const role = response.data.role;
 
-      if (response.data.role === "USER") {
+      localStorage.setItem("token", token);
+      localStorage.setItem("role", role);
+
+      if (role === "USER") {
         navigate("/");
-      } else if (response.data.role === "OWNER") {
+      } else if (role === "OWNER") {
         navigate("/owner-dashboard");
-      } else if (response.data.role === "DRIVER") {
+      } else if (role === "DRIVER") {
         navigate("/driver-dashboard");
+      } else {
+        navigate("/");
       }
     } catch (error) {
       console.log("LOGIN ERROR:", error);
-      console.log("STATUS:", error.response?.status);
-      console.log("BACKEND RESPONSE:", error.response?.data);
 
       setMessage(
         error.response?.data?.message ||
-          error.response?.data ||
-          "Invalid email/license number or password"
+          error.response?.data?.error ||
+          (typeof error.response?.data === "string"
+            ? error.response.data
+            : "Invalid email/license number or password")
       );
     }
   };
@@ -73,7 +81,11 @@ function Login() {
             <button
               type="button"
               className={loginType === "USER" ? "active-tab" : ""}
-              onClick={() => setLoginType("USER")}
+              onClick={() => {
+                setLoginType("USER");
+                setLoginData({ email: "", password: "" });
+                setMessage("");
+              }}
             >
               User
             </button>
@@ -81,7 +93,11 @@ function Login() {
             <button
               type="button"
               className={loginType === "OWNER" ? "active-tab" : ""}
-              onClick={() => setLoginType("OWNER")}
+              onClick={() => {
+                setLoginType("OWNER");
+                setLoginData({ email: "", password: "" });
+                setMessage("");
+              }}
             >
               Owner
             </button>
@@ -89,7 +105,11 @@ function Login() {
             <button
               type="button"
               className={loginType === "DRIVER" ? "active-tab" : ""}
-              onClick={() => setLoginType("DRIVER")}
+              onClick={() => {
+                setLoginType("DRIVER");
+                setLoginData({ email: "", password: "" });
+                setMessage("");
+              }}
             >
               Driver
             </button>
@@ -108,14 +128,24 @@ function Login() {
             required
           />
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Enter Password"
-            value={loginData.password}
-            onChange={handleChange}
-            required
-          />
+          <div className="password-field">
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              placeholder="Enter Password"
+              value={loginData.password}
+              onChange={handleChange}
+              required
+            />
+
+            <button
+              type="button"
+              className="show-password-btn"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
 
           <button type="submit">Login as {loginType}</button>
 

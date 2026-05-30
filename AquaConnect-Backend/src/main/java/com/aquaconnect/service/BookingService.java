@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -32,15 +33,33 @@ public class BookingService {
         Branch branch = branchRepository.findById(request.getBranchId())
                 .orElseThrow(() -> new RuntimeException("Reservoir branch not found"));
 
-        if (branch.getCurrentWaterQuantity() < request.getQuantity()) {
+        if (request.getQuantity() == null || request.getQuantity() <= 0) {
+            throw new RuntimeException("Invalid quantity");
+        }
+
+        if (branch.getCurrentWaterQuantity() == null ||
+                branch.getCurrentWaterQuantity() < request.getQuantity()) {
             throw new RuntimeException("Not enough water available in this branch");
         }
 
-        Double totalPrice = branch.getWaterPrices().stream()
+        if (branch.getWaterPrices() == null || branch.getWaterPrices().isEmpty()) {
+            throw new RuntimeException("Price not added for this branch");
+        }
+
+        Double totalPrice = branch.getWaterPrices()
+                .stream()
                 .filter(price -> price.getQuantity().equals(request.getQuantity()))
                 .map(WaterPrice::getPrice)
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Price not found for selected quantity"));
+                .orElseGet(() -> {
+                    WaterPrice basePrice = branch.getWaterPrices()
+                            .stream()
+                            .max(Comparator.comparing(WaterPrice::getQuantity))
+                            .orElseThrow(() -> new RuntimeException("Price not found"));
+
+                    double pricePerLiter = basePrice.getPrice() / basePrice.getQuantity();
+                    return request.getQuantity() * pricePerLiter;
+                });
 
         branch.setCurrentWaterQuantity(branch.getCurrentWaterQuantity() - request.getQuantity());
         branchRepository.save(branch);
@@ -113,13 +132,12 @@ public class BookingService {
         booking.setVehicle(vehicle);
         booking.setStatus(BookingStatus.DRIVER_ASSIGNED);
 
-        String updatedMessage =
+        booking.setOwnerNotificationMessage(
                 "Booking assigned successfully. Driver " + driver.getDriverName()
                         + " (" + driver.getPhoneNumber() + ")"
                         + " has been assigned with vehicle " + vehicle.getVehicleNumber()
-                        + ". Status updated to DRIVER_ASSIGNED.";
-
-        booking.setOwnerNotificationMessage(updatedMessage);
+                        + ". Status updated to DRIVER_ASSIGNED."
+        );
 
         driver.setStatus(DriverStatus.ON_DELIVERY);
         vehicle.setStatus(VehicleStatus.ON_DELIVERY);
@@ -190,19 +208,60 @@ public class BookingService {
         Driver driver = booking.getDriver();
         Vehicle vehicle = booking.getVehicle();
 
+        Double distanceKm = null;
+
+        if (vehicle != null &&
+                vehicle.getCurrentLatitude() != null &&
+                vehicle.getCurrentLongitude() != null &&
+                booking.getDeliveryLatitude() != null &&
+                booking.getDeliveryLongitude() != null) {
+
+            distanceKm = calculateDistanceInKm(
+                    vehicle.getCurrentLatitude(),
+                    vehicle.getCurrentLongitude(),
+                    booking.getDeliveryLatitude(),
+                    booking.getDeliveryLongitude()
+            );
+        }
+
         return BookingResponseDto.builder()
                 .bookingId(booking.getId())
-                .userName(booking.getUser().getName())
-                .branchName(booking.getBranch().getBranchName())
+                .userName(booking.getUser() != null ? booking.getUser().getName() : null)
+                .userPhone(booking.getUser() != null ? booking.getUser().getPhone() : null)
+                .branchName(booking.getBranch() != null ? booking.getBranch().getBranchName() : null)
                 .quantity(booking.getQuantity())
                 .totalPrice(booking.getTotalPrice())
                 .deliveryAddress(booking.getDeliveryAddress())
+                .deliveryLatitude(booking.getDeliveryLatitude())
+                .deliveryLongitude(booking.getDeliveryLongitude())
                 .driverName(driver != null ? driver.getDriverName() : null)
                 .driverPhone(driver != null ? driver.getPhoneNumber() : null)
+                .vehicleId(vehicle != null ? vehicle.getId() : null)
                 .vehicleNumber(vehicle != null ? vehicle.getVehicleNumber() : null)
                 .vehicleCapacity(vehicle != null ? vehicle.getVehicleCapacity() : null)
+                .vehicleCurrentLatitude(vehicle != null ? vehicle.getCurrentLatitude() : null)
+                .vehicleCurrentLongitude(vehicle != null ? vehicle.getCurrentLongitude() : null)
+                .distanceKm(distanceKm)
                 .status(booking.getStatus())
                 .ownerNotificationMessage(booking.getOwnerNotificationMessage())
                 .build();
+    }
+
+    private double calculateDistanceInKm(double lat1, double lon1, double lat2, double lon2) {
+        final int earthRadius = 6371;
+
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+
+        double a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                        Math.cos(Math.toRadians(lat1)) *
+                                Math.cos(Math.toRadians(lat2)) *
+                                Math.sin(dLon / 2) *
+                                Math.sin(dLon / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return Math.round((earthRadius * c) * 100.0) / 100.0;
     }
 }

@@ -1,22 +1,17 @@
 package com.aquaconnect.service;
 
-import com.aquaconnect.dto.OwnerRegisterRequest;
+import com.aquaconnect.dto.*;
 import com.aquaconnect.entity.*;
+import com.aquaconnect.enums.BookingStatus;
 import com.aquaconnect.enums.DriverStatus;
 import com.aquaconnect.enums.VehicleStatus;
-import com.aquaconnect.repository.OwnerRepository;
+import com.aquaconnect.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.ObjectMapper;
-import com.aquaconnect.dto.OwnerDashboardResponseDto;
-import com.aquaconnect.repository.BookingRepository;
-import com.aquaconnect.dto.*;
-import com.aquaconnect.enums.BookingStatus;
-import com.aquaconnect.repository.BranchRepository;
-import com.aquaconnect.repository.DriverRepository;
-import com.aquaconnect.repository.VehicleRepository;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -32,6 +27,30 @@ public class OwnerService {
     private final BranchRepository branchRepository;
     private final VehicleRepository vehicleRepository;
     private final DriverRepository driverRepository;
+    private final FeedbackRepository feedbackRepository;
+
+    public List<FeedbackResponseDto> getOwnerFeedbacks(String ownerEmail) {
+
+        Owner owner = ownerRepository.findByEmail(ownerEmail)
+                .orElseThrow(() -> new RuntimeException("Owner not found"));
+
+        return feedbackRepository.findByBranchOwnerIdOrderByCreatedAtDesc(owner.getId())
+                .stream()
+                .map(this::mapFeedbackToResponse)
+                .toList();
+    }
+
+    private FeedbackResponseDto mapFeedbackToResponse(Feedback feedback) {
+        return FeedbackResponseDto.builder()
+                .feedbackId(feedback.getId())
+                .userName(feedback.getUser() != null ? feedback.getUser().getName() : "N/A")
+                .branchName(feedback.getBranch() != null ? feedback.getBranch().getBranchName() : "N/A")
+                .bookingId(feedback.getBooking() != null ? feedback.getBooking().getId() : null)
+                .rating(feedback.getRating())
+                .message(feedback.getMessage())
+                .createdAt(feedback.getCreatedAt())
+                .build();
+    }
 
     public String addBranch(AddBranchRequest request, String ownerEmail) {
 
@@ -54,21 +73,31 @@ public class OwnerService {
         return "Branch added successfully";
     }
 
-    public String addVehicle(AddVehicleRequest request, String ownerEmail) {
+    public String addVehicle(
+            Long branchId,
+            String vehicleNumber,
+            Double vehicleCapacity,
+            MultipartFile vehicleImage,
+            String ownerEmail
+    ) {
 
         Owner owner = ownerRepository.findByEmail(ownerEmail)
                 .orElseThrow(() -> new RuntimeException("Owner not found"));
 
-        Branch branch = branchRepository.findById(request.getBranchId())
+        Branch branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new RuntimeException("Branch not found"));
 
         if (!branch.getOwner().getId().equals(owner.getId())) {
             throw new RuntimeException("You cannot add vehicle to another owner's branch");
         }
 
+        String vehicleImagePath =
+                fileStorageService.saveFile(vehicleImage, "vehicles");
+
         Vehicle vehicle = Vehicle.builder()
-                .vehicleNumber(request.getVehicleNumber())
-                .vehicleCapacity(request.getVehicleCapacity())
+                .vehicleNumber(vehicleNumber)
+                .vehicleCapacity(vehicleCapacity)
+                .vehicleImagePath(vehicleImagePath)
                 .status(VehicleStatus.AVAILABLE)
                 .branch(branch)
                 .build();
@@ -78,27 +107,44 @@ public class OwnerService {
         return "Vehicle added successfully";
     }
 
-    public String addDriver(AddDriverRequest request, String ownerEmail) {
+    public String addDriver(
+            Long branchId,
+            String driverName,
+            String phoneNumber,
+            String licenseNumber,
+            String password,
+            MultipartFile driverImage,
+            MultipartFile licenseImage,
+            String ownerEmail
+    ) {
 
         Owner owner = ownerRepository.findByEmail(ownerEmail)
                 .orElseThrow(() -> new RuntimeException("Owner not found"));
 
-        Branch branch = branchRepository.findById(request.getBranchId())
+        Branch branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new RuntimeException("Branch not found"));
 
         if (!branch.getOwner().getId().equals(owner.getId())) {
             throw new RuntimeException("You cannot add driver to another owner's branch");
         }
 
-        if (driverRepository.existsByLicenseNumber(request.getLicenseNumber())) {
+        if (driverRepository.existsByLicenseNumber(licenseNumber)) {
             throw new RuntimeException("License number already exists");
         }
 
+        String driverImagePath =
+                fileStorageService.saveFile(driverImage, "drivers");
+
+        String licenseImagePath =
+                fileStorageService.saveFile(licenseImage, "licenses");
+
         Driver driver = Driver.builder()
-                .driverName(request.getDriverName())
-                .phoneNumber(request.getPhoneNumber())
-                .licenseNumber(request.getLicenseNumber())
-                .password(passwordEncoder.encode(request.getPassword()))
+                .driverName(driverName)
+                .phoneNumber(phoneNumber)
+                .licenseNumber(licenseNumber)
+                .password(passwordEncoder.encode(password))
+                .driverImagePath(driverImagePath)
+                .licenseImagePath(licenseImagePath)
                 .rating(5.0)
                 .status(DriverStatus.AVAILABLE)
                 .branch(branch)
@@ -109,7 +155,9 @@ public class OwnerService {
         return "Driver added successfully";
     }
 
-    public String assignBooking(Long bookingId, AssignBookingRequest request, String ownerEmail) {
+    public String assignBooking(Long bookingId,
+                                AssignBookingRequest request,
+                                String ownerEmail) {
 
         Owner owner = ownerRepository.findByEmail(ownerEmail)
                 .orElseThrow(() -> new RuntimeException("Owner not found"));
@@ -117,7 +165,9 @@ public class OwnerService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        if (booking.getBranch() == null || !booking.getBranch().getOwner().getId().equals(owner.getId())) {
+        if (booking.getBranch() == null ||
+                !booking.getBranch().getOwner().getId().equals(owner.getId())) {
+
             throw new RuntimeException("You cannot assign this booking");
         }
 
@@ -149,7 +199,9 @@ public class OwnerService {
         return "Driver and vehicle assigned successfully";
     }
 
-    public String updateBookingStatus(Long bookingId, UpdateBookingStatusRequest request, String ownerEmail) {
+    public String updateBookingStatus(Long bookingId,
+                                      UpdateBookingStatusRequest request,
+                                      String ownerEmail) {
 
         Owner owner = ownerRepository.findByEmail(ownerEmail)
                 .orElseThrow(() -> new RuntimeException("Owner not found"));
@@ -157,14 +209,20 @@ public class OwnerService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        if (booking.getBranch() == null || !booking.getBranch().getOwner().getId().equals(owner.getId())) {
+        if (booking.getBranch() == null ||
+                !booking.getBranch().getOwner().getId().equals(owner.getId())) {
+
             throw new RuntimeException("You cannot update this booking");
         }
 
-        BookingStatus status = BookingStatus.valueOf(request.getStatus().toUpperCase());
+        BookingStatus status =
+                BookingStatus.valueOf(request.getStatus().toUpperCase());
+
         booking.setStatus(status);
 
-        if (status == BookingStatus.DELIVERED || status == BookingStatus.CANCELLED) {
+        if (status == BookingStatus.DELIVERED ||
+                status == BookingStatus.CANCELLED) {
+
             if (booking.getDriver() != null) {
                 booking.getDriver().setStatus(DriverStatus.AVAILABLE);
                 driverRepository.save(booking.getDriver());
@@ -191,8 +249,9 @@ public class OwnerService {
 
                     List<Booking> bookings = bookingRepository.findAll()
                             .stream()
-                            .filter(booking -> booking.getBranch() != null
-                                    && booking.getBranch().getId().equals(branch.getId()))
+                            .filter(booking ->
+                                    booking.getBranch() != null &&
+                                            booking.getBranch().getId().equals(branch.getId()))
                             .toList();
 
                     return OwnerDashboardResponseDto.BranchInfo.builder()
@@ -204,44 +263,60 @@ public class OwnerService {
 
                             .drivers(
                                     branch.getDrivers().stream()
-                                            .map(driver -> OwnerDashboardResponseDto.DriverInfo.builder()
-                                                    .driverId(driver.getId())
-                                                    .driverName(driver.getDriverName())
-                                                    .phoneNumber(driver.getPhoneNumber())
-                                                    .licenseNumber(driver.getLicenseNumber())
-                                                    .rating(driver.getRating())
-                                                    .status(driver.getStatus().name())
-                                                    .build())
+                                            .map(driver ->
+                                                    OwnerDashboardResponseDto.DriverInfo.builder()
+                                                            .driverId(driver.getId())
+                                                            .driverName(driver.getDriverName())
+                                                            .phoneNumber(driver.getPhoneNumber())
+                                                            .licenseNumber(driver.getLicenseNumber())
+                                                            .rating(driver.getRating())
+                                                            .status(driver.getStatus().name())
+                                                            .build())
                                             .toList()
                             )
 
                             .vehicles(
                                     branch.getVehicles().stream()
-                                            .map(vehicle -> OwnerDashboardResponseDto.VehicleInfo.builder()
-                                                    .vehicleId(vehicle.getId())
-                                                    .vehicleNumber(vehicle.getVehicleNumber())
-                                                    .vehicleCapacity(vehicle.getVehicleCapacity())
-                                                    .status(vehicle.getStatus().name())
-                                                    .build())
+                                            .map(vehicle ->
+                                                    OwnerDashboardResponseDto.VehicleInfo.builder()
+                                                            .vehicleId(vehicle.getId())
+                                                            .vehicleNumber(vehicle.getVehicleNumber())
+                                                            .vehicleCapacity(vehicle.getVehicleCapacity())
+                                                            .status(vehicle.getStatus().name())
+                                                            .build())
                                             .toList()
                             )
 
                             .bookings(
                                     bookings.stream()
-                                            .map(booking -> OwnerDashboardResponseDto.BookingInfo.builder()
-                                                    .bookingId(booking.getId())
-                                                    .userName(booking.getUser() != null ? booking.getUser().getName() : "N/A")
-                                                    .quantity(booking.getQuantity())
-                                                    .totalPrice(booking.getTotalPrice())
-                                                    .deliveryAddress(booking.getDeliveryAddress())
-                                                    .status(booking.getStatus().name())
-                                                    .driverName(booking.getDriver() != null ? booking.getDriver().getDriverName() : "Not Assigned")
-                                                    .vehicleNumber(booking.getVehicle() != null ? booking.getVehicle().getVehicleNumber() : "Not Assigned")
-                                                    .build())
+                                            .map(booking ->
+                                                    OwnerDashboardResponseDto.BookingInfo.builder()
+                                                            .bookingId(booking.getId())
+                                                            .userName(
+                                                                    booking.getUser() != null
+                                                                            ? booking.getUser().getName()
+                                                                            : "N/A"
+                                                            )
+                                                            .quantity(booking.getQuantity())
+                                                            .totalPrice(booking.getTotalPrice())
+                                                            .deliveryAddress(booking.getDeliveryAddress())
+                                                            .status(booking.getStatus().name())
+                                                            .driverName(
+                                                                    booking.getDriver() != null
+                                                                            ? booking.getDriver().getDriverName()
+                                                                            : "Not Assigned"
+                                                            )
+                                                            .vehicleNumber(
+                                                                    booking.getVehicle() != null
+                                                                            ? booking.getVehicle().getVehicleNumber()
+                                                                            : "Not Assigned"
+                                                            )
+                                                            .build())
                                             .toList()
                             )
 
                             .build();
+
                 }).toList();
 
         int totalDrivers = owner.getBranches()
@@ -261,7 +336,10 @@ public class OwnerService {
 
         Double totalWater = owner.getBranches()
                 .stream()
-                .mapToDouble(branch -> branch.getCurrentWaterQuantity() == null ? 0 : branch.getCurrentWaterQuantity())
+                .mapToDouble(branch ->
+                        branch.getCurrentWaterQuantity() == null
+                                ? 0
+                                : branch.getCurrentWaterQuantity())
                 .sum();
 
         return OwnerDashboardResponseDto.builder()
@@ -285,7 +363,9 @@ public class OwnerService {
             List<MultipartFile> driverImages,
             List<MultipartFile> licenseImages
     ) {
+
         try {
+
             OwnerRegisterRequest request =
                     objectMapper.readValue(data, OwnerRegisterRequest.class);
 
@@ -311,6 +391,7 @@ public class OwnerService {
             boolean newOwner = false;
 
             if (owner == null) {
+
                 owner = Owner.builder()
                         .fullName(request.getFullName())
                         .phoneNumber(request.getPhoneNumber())
@@ -334,6 +415,7 @@ public class OwnerService {
                     .build();
 
             for (MultipartFile image : reservoirImages) {
+
                 ReservoirImage reservoirImage = ReservoirImage.builder()
                         .imagePath(fileStorageService.saveFile(image, "reservoirs"))
                         .branch(branch)
@@ -343,10 +425,13 @@ public class OwnerService {
             }
 
             for (int i = 0; i < request.getVehicles().size(); i++) {
+
                 Vehicle vehicle = Vehicle.builder()
                         .vehicleNumber(request.getVehicles().get(i).getVehicleNumber())
                         .vehicleCapacity(request.getVehicles().get(i).getVehicleCapacity())
-                        .vehicleImagePath(fileStorageService.saveFile(vehicleImages.get(i), "vehicles"))
+                        .vehicleImagePath(
+                                fileStorageService.saveFile(vehicleImages.get(i), "vehicles")
+                        )
                         .status(VehicleStatus.AVAILABLE)
                         .branch(branch)
                         .build();
@@ -356,19 +441,29 @@ public class OwnerService {
 
             for (int i = 0; i < request.getDrivers().size(); i++) {
 
-                String driverName = request.getDrivers().get(i).getDriverName();
-                String phoneNumber = request.getDrivers().get(i).getPhoneNumber();
-                String licenseNumber = request.getDrivers().get(i).getLicenseNumber();
+                String driverName =
+                        request.getDrivers().get(i).getDriverName();
 
-                String rawPassword = generateDriverPassword(driverName, licenseNumber);
+                String phoneNumber =
+                        request.getDrivers().get(i).getPhoneNumber();
+
+                String licenseNumber =
+                        request.getDrivers().get(i).getLicenseNumber();
+
+                String rawPassword =
+                        generateDriverPassword(driverName, licenseNumber);
 
                 Driver driver = Driver.builder()
                         .driverName(driverName)
                         .phoneNumber(phoneNumber)
                         .licenseNumber(licenseNumber)
                         .password(passwordEncoder.encode(rawPassword))
-                        .driverImagePath(fileStorageService.saveFile(driverImages.get(i), "drivers"))
-                        .licenseImagePath(fileStorageService.saveFile(licenseImages.get(i), "licenses"))
+                        .driverImagePath(
+                                fileStorageService.saveFile(driverImages.get(i), "drivers")
+                        )
+                        .licenseImagePath(
+                                fileStorageService.saveFile(licenseImages.get(i), "licenses")
+                        )
                         .rating(5.0)
                         .status(DriverStatus.AVAILABLE)
                         .branch(branch)
@@ -385,6 +480,7 @@ public class OwnerService {
             }
 
             request.getWaterPrices().forEach(priceRequest -> {
+
                 WaterPrice waterPrice = WaterPrice.builder()
                         .quantity(priceRequest.getQuantity())
                         .price(priceRequest.getPrice())
@@ -404,19 +500,24 @@ public class OwnerService {
             return "New branch added successfully for existing owner";
 
         } catch (Exception e) {
+
             throw new RuntimeException(e.getMessage());
         }
     }
 
-    private String generateDriverPassword(String driverName, String licenseNumber) {
+    private String generateDriverPassword(String driverName,
+                                          String licenseNumber) {
 
-        String firstName = driverName.trim().split(" ")[0].toLowerCase();
+        String firstName =
+                driverName.trim().split(" ")[0].toLowerCase();
 
-        String digits = licenseNumber.replaceAll("[^0-9]", "");
+        String digits =
+                licenseNumber.replaceAll("[^0-9]", "");
 
-        String lastSix = digits.length() >= 6
-                ? digits.substring(digits.length() - 6)
-                : digits;
+        String lastSix =
+                digits.length() >= 6
+                        ? digits.substring(digits.length() - 6)
+                        : digits;
 
         return firstName + lastSix;
     }

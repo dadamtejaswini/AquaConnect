@@ -9,28 +9,19 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class NearbyReservoirResponse {
+public class UserBranchResponseDto {
 
     private Long branchId;
     private String branchName;
     private String location;
-
     private Double latitude;
     private Double longitude;
-
     private Double currentWaterQuantity;
-    private Double distanceInKm;
-
-    private String reservoirImage;
-
-    private Integer availableVehicles;
-    private Integer availableDrivers;
-
-    private Double startingPrice;
-
+    private String ownerName;
     private List<String> imageUrls;
+    private List<WaterPriceRequest> waterPrices;
+
     private List<VehicleResponseDto> vehicles;
     private List<DriverResponseDto> drivers;
     private List<FeedbackResponseDto> feedbacks;
-
 }

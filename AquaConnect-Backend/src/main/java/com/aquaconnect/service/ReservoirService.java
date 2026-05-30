@@ -1,9 +1,9 @@
 package com.aquaconnect.service;
 
-import com.aquaconnect.dto.NearbyReservoirResponse;
-import com.aquaconnect.entity.Branch;
-import com.aquaconnect.entity.WaterPrice;
+import com.aquaconnect.dto.*;
+import com.aquaconnect.entity.*;
 import com.aquaconnect.repository.BranchRepository;
+import com.aquaconnect.repository.FeedbackRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +15,9 @@ import java.util.List;
 public class ReservoirService {
 
     private final BranchRepository branchRepository;
+    private final FeedbackRepository feedbackRepository;
+
+    private static final String BASE_URL = "http://localhost:8080/";
 
     public List<NearbyReservoirResponse> getNearbyReservoirs(
             Double userLat,
@@ -42,15 +45,62 @@ public class ReservoirService {
                             .longitude(branch.getLongitude())
                             .currentWaterQuantity(branch.getCurrentWaterQuantity())
                             .distanceInKm(distance)
+
                             .reservoirImage(
                                     branch.getReservoirImages().isEmpty()
                                             ? null
-                                            : branch.getReservoirImages().get(0).getImagePath()
+                                            : buildImageUrl(branch.getReservoirImages().get(0).getImagePath())
                             )
+
+                            .imageUrls(
+                                    branch.getReservoirImages()
+                                            .stream()
+                                            .map(image -> buildImageUrl(image.getImagePath()))
+                                            .toList()
+                            )
+
                             .availableVehicles(branch.getVehicles().size())
                             .availableDrivers(branch.getDrivers().size())
+
+                            .vehicles(
+                                    branch.getVehicles()
+                                            .stream()
+                                            .map(vehicle -> VehicleResponseDto.builder()
+                                                    .vehicleId(vehicle.getId())
+                                                    .vehicleNumber(vehicle.getVehicleNumber())
+                                                    .vehicleCapacity(vehicle.getVehicleCapacity())
+                                                    .vehicleImageUrl(buildImageUrl(vehicle.getVehicleImagePath()))
+                                                    .status(vehicle.getStatus())
+                                                    .build()
+                                            )
+                                            .toList()
+                            )
+
+                            .drivers(
+                                    branch.getDrivers()
+                                            .stream()
+                                            .map(driver -> DriverResponseDto.builder()
+                                                    .driverId(driver.getId())
+                                                    .driverName(driver.getDriverName())
+                                                    .phoneNumber(driver.getPhoneNumber())
+                                                    .rating(driver.getRating())
+                                                    .status(driver.getStatus())
+                                                    .driverImageUrl(buildImageUrl(driver.getDriverImagePath()))
+                                                    .build()
+                                            )
+                                            .toList()
+                            )
+
+                            .feedbacks(
+                                    feedbackRepository.findByBranchIdOrderByCreatedAtDesc(branch.getId())
+                                            .stream()
+                                            .map(this::mapFeedbackToResponse)
+                                            .toList()
+                            )
+
                             .startingPrice(
-                                    branch.getWaterPrices().stream()
+                                    branch.getWaterPrices()
+                                            .stream()
                                             .map(WaterPrice::getPrice)
                                             .min(Double::compareTo)
                                             .orElse(0.0)
@@ -62,7 +112,41 @@ public class ReservoirService {
                 .toList();
     }
 
+    private FeedbackResponseDto mapFeedbackToResponse(Feedback feedback) {
+        return FeedbackResponseDto.builder()
+                .feedbackId(feedback.getId())
+                .userName(feedback.getUser() != null ? feedback.getUser().getName() : "N/A")
+                .branchName(feedback.getBranch() != null ? feedback.getBranch().getBranchName() : "N/A")
+                .bookingId(feedback.getBooking() != null ? feedback.getBooking().getId() : null)
+                .rating(feedback.getRating())
+                .message(feedback.getMessage())
+                .createdAt(feedback.getCreatedAt())
+                .build();
+    }
+
+    private String buildImageUrl(String imagePath) {
+        if (imagePath == null || imagePath.trim().isEmpty()) {
+            return null;
+        }
+
+        String cleanPath = imagePath.replace("\\", "/");
+
+        if (cleanPath.startsWith("http://") || cleanPath.startsWith("https://")) {
+            return cleanPath;
+        }
+
+        if (cleanPath.startsWith("/")) {
+            cleanPath = cleanPath.substring(1);
+        }
+
+        return BASE_URL + cleanPath;
+    }
+
     private double calculateDistance(Double lat1, Double lon1, Double lat2, Double lon2) {
+
+        if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) {
+            return 0.0;
+        }
 
         final int EARTH_RADIUS = 6371;
 

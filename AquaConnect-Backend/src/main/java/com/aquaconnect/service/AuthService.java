@@ -100,6 +100,7 @@ public class AuthService {
         }
 
         String token = jwtUtil.generateToken(
+
                 driver.getLicenseNumber(),
                 "DRIVER"
         );

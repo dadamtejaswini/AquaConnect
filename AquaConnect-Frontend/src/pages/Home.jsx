@@ -13,10 +13,26 @@ import {
 function Home() {
   const navigate = useNavigate();
 
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");
+
+  const logout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
+
+const handleBookTanker = () => {
+  if (token && role === "USER") {
+    navigate("/nearby-reservoirs");
+  } else {
+    navigate("/login");
+  }
+};
+
   return (
     <div className="app">
       <nav className="navbar">
-        <div className="logo">
+        <div className="logo" onClick={() => navigate("/")}>
           <img src={logo} alt="AquaConnect Logo" />
           <span>AquaConnect</span>
         </div>
@@ -26,16 +42,60 @@ function Home() {
           <a href="#about">About Us</a>
           <a href="#services">Services</a>
           <a href="#how">How It Works</a>
-          <a href="#contact">Contact</a>
+          <button
+          className="nav-text-btn"
+          onClick={() => navigate("/contact")}
+        >
+          Contact
+        </button>
+
+          {token && role === "USER" && (
+            <button
+              className="nav-text-btn"
+              onClick={() => navigate("/bookings")}
+            >
+              Bookings
+            </button>
+          )}
+
+          {token && role === "OWNER" && (
+            <button
+              className="nav-text-btn"
+              onClick={() => navigate("/owner-dashboard")}
+            >
+              Owner Dashboard
+            </button>
+          )}
+
+          {token && role === "DRIVER" && (
+            <button
+              className="nav-text-btn"
+              onClick={() => navigate("/driver-dashboard")}
+            >
+              Driver Dashboard
+            </button>
+          )}
         </div>
 
         <div className="nav-buttons">
-          <button className="login-btn" onClick={() => navigate("/login")}>
-            Login
-          </button>
-          <button className="signup-btn" onClick={() => navigate("/register")}>
-            Sign Up
-          </button>
+          {!token ? (
+            <>
+              <button className="login-btn" onClick={() => navigate("/login")}>
+                Login
+              </button>
+
+              <button
+                className="signup-btn"
+                onClick={() => navigate("/register")}
+              >
+                Sign Up
+              </button>
+            </>
+          ) : (
+            <button className="login-btn logout-btn" onClick={logout}>
+              Logout
+            </button>
+          )}
         </div>
       </nav>
 
@@ -44,13 +104,14 @@ function Home() {
           <h1>
             Clean Water. <br /> Delivered to You.
           </h1>
+
           <p>
             Book water tankers easily and get reliable water supply at your
             doorstep.
           </p>
 
           <div className="hero-buttons">
-            <button className="primary-btn" onClick={() => navigate("/login")}>
+            <button className="primary-btn" onClick={handleBookTanker}>
               <Droplets size={20} />
               Book a Tanker
             </button>
@@ -97,7 +158,13 @@ function Home() {
             helps users book tankers, track delivery status, and get water
             supply during emergencies or daily needs.
           </p>
-          <button className="learn-btn">Learn More</button>
+
+          <button
+            className="learn-btn"
+            onClick={() => navigate("/about-aquaconnect")}
+          >
+            Learn More
+          </button>
         </div>
       </section>
 
@@ -139,13 +206,6 @@ function Home() {
         </div>
 
         <div>
-          <h4>Quick Links</h4>
-          <p>Home</p>
-          <p>About Us</p>
-          <p>Services</p>
-        </div>
-
-        <div>
           <h4>Services</h4>
           <p>Water Tanker Booking</p>
           <p>Track Booking</p>
@@ -154,7 +214,7 @@ function Home() {
 
         <div>
           <h4>Contact Us</h4>
-          <p>support@aquaconnect.com</p>
+          <p>connectus@aquaconnect.com</p>
           <p>Bengaluru, India</p>
         </div>
       </footer>

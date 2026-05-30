@@ -23,6 +23,10 @@ public class Vehicle {
 
     private String vehicleImagePath;
 
+    private Double currentLatitude;
+
+    private Double currentLongitude;
+
     @Enumerated(EnumType.STRING)
     private VehicleStatus status;
 
