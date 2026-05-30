@@ -184,7 +184,7 @@ The owner will register with:
 * User booking history
 * Owner booking history
 
-### Day 227 Final Integration & Testing
+### Day 27 Final Integration & Testing
 
 * Backend and frontend integration
 * API testing and validation
